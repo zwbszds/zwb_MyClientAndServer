@@ -13,6 +13,7 @@ export default {
     mounted(){
        //发送请求
       this.$store.dispatch('getAddress')
+      this.$store.dispatch('getUser')
     },
 
     components:{

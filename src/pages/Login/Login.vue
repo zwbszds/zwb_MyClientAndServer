@@ -13,11 +13,11 @@
           <div :class="{on:loginWay}">
             <section class="login_message">
               <input type="tel" maxlength="11" placeholder="手机号" v-model="phone">
-              <button :disabled="!isRightPhone ||computedTime>0 " class="get_verification":class="{right_phone_number:isRightPhone}" @click="sendCode">
+              <button :disabled="!isRightPhone ||computedTime>0 " class="get_verification":class="{right_phone_number:isRightPhone}" @click.prevent="sendCode">
                 {{computedTime>0? `已发送${computedTime}s`:'获取验证码'}}</button>
             </section>
             <section class="login_verification">
-              <input type="tel" maxlength="8" placeholder="验证码">
+              <input type="tel" maxlength="8" placeholder="验证码" v-model="code">
             </section>
             <section class="login_hint">
               温馨提示：未注册硅谷外卖帐号的手机号，登录时将自动注册，且代表已同意
@@ -27,22 +27,23 @@
           <div :class="{on:!loginWay}">
             <section>
               <section class="login_message">
-                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名">
+                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名"v-model="name">
               </section>
               <section class="login_verification">
-                <input type="tel" maxlength="8" placeholder="密码">
+                <input :type="isShowPwd? 'text':'password'" maxlength="8" placeholder="密码" v-model="pwd">
                 <div class="switch_button":class="isShowPwd?'on':'off'" @click="isShowPwd=!isShowPwd">
                   <div class="switch_circle" :class="{right:isShowPwd}"></div>
                   <span class="switch_text">{{isShowPwd?'abc':'...'}}</span>
                 </div>
               </section>
               <section class="login_message">
-                <input type="text" maxlength="11" placeholder="验证码">
-                <img class="get_verification" src="./images/captcha.svg" alt="captcha">
+                <input type="text" maxlength="11" placeholder="验证码" v-model="captcha">
+                <img class="get_verification" src="http://localhost:4000/captcha" alt="captcha"
+                @click="updateCaptcha" ref = 'captcha'>
               </section>
             </section>
           </div>
-          <button class="login_submit">登录</button>
+          <button class="login_submit" @click.prevent="login">登录</button>
         </form>
         <a href="javascript:;" class="about_us">关于我们</a>
       </div>
@@ -54,13 +55,24 @@
 </template>
 
 <script>
+  import {Toast, MessageBox} from 'mint-ui'
+  import {reqSendCode, reqPwdLogin, reqSmsLogin} from '../../api'
   export default {
       data(){
         return {
           loginWay:true,//  true短信  false:密码
-          phone:'',//输入框中的值
+
           computedTime:0,
-          isShowPwd:false
+          isShowPwd:false,
+
+          captcha: '', // 图形验证码
+          //登录
+          code: '', // 短信验证码
+          phone:'',//输入框中的值
+
+
+          name:'',
+          pwd:''
         }
       },
     computed:{
@@ -73,7 +85,7 @@
     methods:{
         //发送验证码函数
       //当输入的手机号不正确以及倒计时不是0的时候，disable为true
-      sendCode(){
+      async sendCode(){
         //在这里实现倒计时
           this.computedTime = 30
 
@@ -90,6 +102,77 @@
             this.computedTime--
 
           },1000)
+
+
+        //发送短信验证码
+
+        const result = await reqSendCode(this.phone)
+
+        //判断数据是否成功
+        if(result.code===0){
+          Toast('验证码已发送')
+        }else{
+
+          //发送失败的同时
+          this.computedTime=0
+            //验证码发送失败
+          MessageBox.alert(result.msg).then(action=>{
+            console.log('点击以后')
+          })
+        }
+
+      },
+      //发送图像验证码
+      updateCaptcha(){
+          this.$refs.captcha.src = 'http://localhost:4000/captcha?time='+Date.now()
+      },
+
+      //请求登录
+      async login (){
+       let result
+        //前台表单验证
+        if(this.loginWay){
+          //短信
+          //拿到发送请求需要的数据
+          const {phone,code} = this
+          //前段验证
+          if(!this.isRightPhone){
+            return MessageBox.alert('请输入正确手机号')
+          }else if(!/^\d{6}$/.test(code)){
+            return MessageBox.alert('请输入正确验证码')
+          }
+          //发送登录请求
+         result = await reqSmsLogin(phone,code)
+        }else{
+           // 密码登录
+          const {name, pwd, captcha} =this
+          if(!name){
+            return MessageBox.alert('用户名必须指定')
+          }else if (!pwd){
+            return MessageBox.alert('密码必须指定')
+          }else if(!/^.{4}$/.test(captcha)){
+            return MessageBox.alert('请输入正确验证码')
+          }
+
+         result = await reqPwdLogin({name, pwd, captcha})
+
+        }
+
+
+        //请求结束以后统一处理请求结果
+
+        if(result.code===0){
+          //成功
+          //保存到state
+          const user = result.data
+          this.$store.dispatch('saveUser',user)
+          //条状profile
+          this.$router.replace('/profile')
+
+        }else{
+         //失败
+          MessageBox.alert(result.msg)
+        }
       }
     }
 

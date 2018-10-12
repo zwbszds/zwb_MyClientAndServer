@@ -2,15 +2,22 @@
 
 import {reqAddress,
   reqFoodCategorys,
-  reqShops} from '../api'
+  reqShops,
+  reqUser,
+  reqLogout
+} from '../api'
 
 //引入mutation-types
 
 import {
   RECEIVE_SHOPS,
   RECEIVE_CATEGORYS,
-  RECEIVE_ADDRESS
+  RECEIVE_ADDRESS,
+  RECEIVE_USER,
+  RESET_USER
 } from './mutation-types'
+
+
 
 
 export default {
@@ -48,6 +55,7 @@ export default {
 
 
   },
+
   async getShops({commit, state}) {
     //拿到需要的经纬度
     const {latitude, longitude} = state
@@ -64,5 +72,26 @@ export default {
 
 
 
+  },
+
+  //保存用户信息
+  saveUser ({commit}, user) {
+    commit(RECEIVE_USER, {user})
+  },
+  //获取用户信息
+  async getUser({commit}){
+    const result = await reqUser()
+    const user = result.data
+    if(result.code===0){
+      commit(RECEIVE_USER,{user})
+    }
+  },
+
+
+  async logout({commit}){
+      const result = await reqLogout()
+    if(result.code===0){
+      commit(RESET_USER)
+    }
   }
 }
