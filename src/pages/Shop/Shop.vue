@@ -20,15 +20,14 @@
 </template>
 
 <script>
-  import  {reqGoods} from '../../api'
+
   import ShopHeader from '../../components/ShopHeader/ShopHeader.vue'
   export default {
     components:{
       ShopHeader
     },
-    async mounted(){
-       const result = await reqGoods()
-      console.log('00000',result);
+    mounted(){
+        this.$store.dispatch('getInfo')
     }
   }
 </script>
